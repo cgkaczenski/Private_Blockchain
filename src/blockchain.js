@@ -12,6 +12,8 @@ const SHA256 = require("crypto-js/sha256");
 const BlockClass = require("./block.js");
 const bitcoinMessage = require("bitcoinjs-message");
 
+const FIVE_MIN = 5 * 60 * 1000;
+
 class Blockchain {
   /**
    * Constructor of the class, you will need to setup your chain array and the height
@@ -111,7 +113,26 @@ class Blockchain {
    */
   submitStar(address, message, signature, star) {
     let self = this;
-    return new Promise(async (resolve, reject) => {});
+    return new Promise(async (resolve, reject) => {
+      let diff = self._getElapsedTimeInSeconds(message);
+      if (diff > FIVE_MIN) {
+        reject("Over 5 minutes has elapsed.");
+      }
+      if (!bitcoinMessage.verify(message, address, signature)) {
+        reject("Verification failed");
+      }
+      let block = new BlockClass.Block({
+        data: { owner: address, star: star },
+      });
+      self._addBlock(block);
+      resolve(block);
+    });
+  }
+
+  _getElapsedTimeInSeconds(message) {
+    let messageTime = parseInt(message.split(":")[1]);
+    let currentTime = parseInt(new Date().getTime().toString().slice(0, -3));
+    return currentTime - messageTime;
   }
 
   /**
